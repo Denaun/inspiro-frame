@@ -1,0 +1,13 @@
+[package]
+name = "inspiro-frame"
+version = "0.1.0"
+license = "MIT"
+authors = ["Maurizio Zucchelli <mauzuc90@yahoo.it>"]
+description = "InspiroBot-based picture frame for RaspberryPI."
+repository = "https://github.com/Denaun/inspiro-frame"
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+inspiro-bot = { version = "0.1.0", path = "../inspiro-bot" }
+rgb2bwr = { version = "0.1.0", path = "../rgb2bwr" }

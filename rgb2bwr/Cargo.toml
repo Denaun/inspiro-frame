@@ -1,0 +1,12 @@
+[package]
+name = "rgb2bwr"
+version = "0.1.0"
+license = "MIT"
+authors = ["Maurizio Zucchelli <mauzuc90@yahoo.it>"]
+categories = ["multimedia::images", "multimedia::encoding"]
+repository = "https://github.com/Denaun/inspiro-frame"
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+image = "0.23.13"

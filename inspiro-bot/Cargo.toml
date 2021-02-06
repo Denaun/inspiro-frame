@@ -1,0 +1,12 @@
+[package]
+name = "inspiro-bot"
+version = "0.1.0"
+license = "MIT"
+authors = ["Maurizio Zucchelli <mauzuc90@yahoo.it>"]
+repository = "https://github.com/Denaun/inspiro-frame"
+readme = "README.md"
+categories = ["api-bindings", "web-programming::http-client"]
+edition = "2018"
+
+[dependencies]
+reqwest = "0.11.0"
