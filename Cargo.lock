@@ -13,6 +13,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
+name = "async-stream"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3670df70cbc01729f901f94c887814b3c68db038aad1329a418bae178bc5295c"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3548b8efc9f8e8a5a0a2808c5bd8451a9031b9e5b879a79590304ae928b0a70"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -411,17 +432,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "inspiro-bot-api"
+name = "inspiro-bot"
 version = "0.1.0"
 dependencies = [
+ "image",
  "reqwest",
+ "thiserror",
+ "tokio-test",
 ]
 
 [[package]]
 name = "inspiro-frame"
 version = "0.1.0"
 dependencies = [
- "inspiro-bot-api",
+ "inspiro-bot",
  "rgb2bwr",
 ]
 
@@ -1003,6 +1027,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "thiserror"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76cc616c6abf8c8928e2fdcc0dbfab37175edd8fb49a4641066ad1364fdab146"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9be73a2caec27583d0046ef3796c3794f868a5bc813db689eed00c7631275cd1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "tiff"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1050,6 +1094,30 @@ checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
 dependencies = [
  "native-tls",
  "tokio",
+]
+
+[[package]]
+name = "tokio-stream"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1981ad97df782ab506a1f43bf82c967326960d278acf3bf8279809648c3ff3ea"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-test"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c7d205f6f59b03f9e824ac86eaba635a98395f287756ecc8a06464779c399bf"
+dependencies = [
+ "async-stream",
+ "bytes",
+ "futures-core",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
