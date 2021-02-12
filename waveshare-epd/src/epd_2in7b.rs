@@ -15,8 +15,8 @@ const DC_PIN: u8 = 25;
 const CS_PIN: u8 = 8;
 const BUSY_PIN: u8 = 24;
 
-const EPD_WIDTH: usize = 176;
-const EPD_HEIGHT: usize = 264;
+pub const EPD_WIDTH: usize = 176;
+pub const EPD_HEIGHT: usize = 264;
 const EPD_BUFFER_SIZE: usize = EPD_WIDTH * EPD_HEIGHT / 8;
 
 pub struct Epd {
