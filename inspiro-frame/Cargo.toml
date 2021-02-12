@@ -11,3 +11,9 @@ edition = "2018"
 [dependencies]
 inspiro-bot = { version = "0.1.0", path = "../inspiro-bot" }
 rgb2bwr = { version = "0.1.0", path = "../rgb2bwr" }
+waveshare-epd = { version = "0.1.0", path = "../waveshare-epd" }
+
+anyhow = "1.0.38"
+image = "0.23.13"
+simplelog = "0.9.0"
+tokio = { version = "1.2.0", features = ["full"] }
