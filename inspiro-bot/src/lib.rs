@@ -1,5 +1,6 @@
 mod error;
 
+use log::info;
 pub use crate::error::{ApiError as Error, Result};
 
 const API_URL: &str = "https://inspirobot.me/api?generate=true";
@@ -10,6 +11,7 @@ pub async fn generate_url() -> Result<String> {
 
 pub async fn generate_image() -> Result<image::DynamicImage> {
     let url = generate_url().await?;
+    info!("Fetching {}", url);
     let data = reqwest::get(&url).await?.bytes().await?;
     let decoder = image::io::Reader::with_format(
         std::io::Cursor::new(&data),
