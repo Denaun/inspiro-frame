@@ -506,26 +506,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "inspiro-bot"
-version = "0.1.0"
-dependencies = [
- "image",
- "log",
- "reqwest",
- "thiserror",
- "tokio-test",
-]
-
-[[package]]
 name = "inspiro-frame"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "image",
- "inspiro-bot",
+ "log",
+ "reqwest",
  "rgb2bwr",
  "simplelog",
  "tokio",
+ "tokio-test",
  "waveshare-epd",
 ]
 

@@ -2,6 +2,5 @@
 members = [
     "inspiro-frame",
     "rgb2bwr",
-    "inspiro-bot",
     "waveshare-epd",
 ]
