@@ -7,10 +7,7 @@ use simple_signal::{self, Signal};
 use std::{
     path::PathBuf,
     process::{Command, ExitStatus},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::Arc,
 };
 use structopt::StructOpt;
 use waveshare_epd::epd_2in7b as epd;
@@ -49,7 +46,7 @@ pub async fn main() -> anyhow::Result<()> {
         } => next_image(url.as_deref(), dither || !no_dither).await?,
         Opt::Listen { config } => {
             let config = config::load(config)?;
-            listen(config)?
+            listen(config).await?
         }
     }
 
@@ -76,11 +73,11 @@ async fn next_image(url: Option<&str>, dither: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn listen(config: Config) -> anyhow::Result<()> {
-    let running = Arc::new(AtomicBool::new(true));
+async fn listen(config: Config) -> anyhow::Result<()> {
+    let running = Arc::new(tokio::sync::Semaphore::const_new(0));
     let r = running.clone();
     simple_signal::set_handler(&[Signal::Int, Signal::Term], move |_signals| {
-        r.store(false, Ordering::SeqCst);
+        r.add_permits(1);
     });
 
     log::debug!("Configuring interrupts.");
@@ -102,7 +99,7 @@ fn listen(config: Config) -> anyhow::Result<()> {
         .collect::<Result<Vec<_>, _>>()?;
 
     log::info!("Ready.");
-    while running.load(Ordering::SeqCst) {}
+    let _ = running.acquire().await.unwrap();
     log::info!("Exiting...");
     // Interrupts are lost when the pins are dropped: ensure this happens here
     // and not earlier due to optimizations.
