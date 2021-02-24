@@ -165,8 +165,8 @@ impl BwrHeuristic {
     fn to_bwr(&self, color: &Rgb<u8>) -> Bwr {
         let (h, s, v) = hsv(color[0], color[1], color[2]);
         let h = fold_red(h);
-        if v >= self.v {
-            if h >= self.h && s >= self.s {
+        if v > self.v {
+            if h > self.h && s > self.s {
                 Bwr::Red
             } else {
                 Bwr::White
