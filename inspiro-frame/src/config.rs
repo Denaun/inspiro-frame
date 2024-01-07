@@ -18,7 +18,7 @@ pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Config> {
 }
 
 pub fn from_str(s: &str) -> anyhow::Result<Config> {
-    let raw: RawConfig = toml::from_str(&s)?;
+    let raw = RawConfig::deserialize(toml::Deserializer::new(s))?;
     Ok(Config {
         gpio: raw
             .gpio

@@ -1,28 +1,28 @@
 [package]
 name = "inspiro-frame"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 authors = ["Maurizio Zucchelli <mauzuc90@yahoo.it>"]
 description = "InspiroBot-based picture frame for RaspberryPI."
 repository = "https://github.com/Denaun/inspiro-frame"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 rgb2bwr = { version = "0.1.0", path = "../rgb2bwr" }
 waveshare-epd = { version = "0.1.0", path = "../waveshare-epd" }
 
 anyhow = "1.0.38"
-image = "0.23.13"
+image = "0.24.7"
 log = "0.4.14"
 reqwest = "0.11.0"
-rppal = "0.11.3"
-serde = { version = "1.0", features = ["derive"] }
+rppal = "0.16.1"
+serde = { version = "1.0.195", features = ["derive"] }
 simple-signal = "1.1.1"
-simplelog = "0.9.0"
+simplelog = "0.12.1"
 structopt = "0.3.21"
 tokio = { version = "1.2.0", features = ["full"] }
-toml = "0.5.8"
+toml = "0.8.8"
 
 [dev-dependencies]
 tokio-test = "*"

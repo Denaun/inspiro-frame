@@ -1,15 +1,15 @@
 [package]
 name = "waveshare-epd"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 authors = ["Maurizio Zucchelli <mauzuc90@yahoo.it>"]
 description = "Rust port of Waveshare's e-Paper driver."
 repository = "https://github.com/Denaun/inspiro-frame"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-image = "0.23.13"
+image = "0.24.7"
 log = "0.4.14"
-rppal = "0.11.3"
+rppal = "0.16.1"
 thiserror = "1.0.23"
