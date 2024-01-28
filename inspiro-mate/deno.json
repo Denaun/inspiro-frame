@@ -1,0 +1,16 @@
+{
+  "lock": false,
+  "tasks": {
+    "check": "deno fmt --check && deno lint && deno check **/*.ts",
+    "start": "deno run -A --watch=src src/server.ts",
+    "test": "deno test --watch **/*_test.ts",
+    "preview": "deno run -A src/server.ts"
+  },
+  "lint": {
+    "rules": {
+      "tags": [
+        "recommended"
+      ]
+    }
+  }
+}
