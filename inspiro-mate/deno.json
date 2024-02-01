@@ -1,9 +1,10 @@
 {
   "lock": false,
   "tasks": {
+    "install-chrome": "deno run npm:puppeteer@21 browsers install chrome",
     "check": "deno fmt --check && deno lint && deno check **/*.ts",
     "start": "deno run -A --watch=src src/server.ts",
-    "test": "deno test --watch **/*_test.ts",
+    "test": "deno test --allow-env --watch **/*_test.ts",
     "preview": "deno run -A src/server.ts"
   },
   "lint": {
