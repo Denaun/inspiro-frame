@@ -5,3 +5,6 @@ members = [
     "rgb2bwr",
     "waveshare-epd",
 ]
+exclude = [
+    "espiro-frame",
+]
