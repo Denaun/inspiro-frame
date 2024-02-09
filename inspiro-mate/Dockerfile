@@ -1,5 +1,5 @@
 FROM denoland/deno:bin AS deno
-FROM ghcr.io/puppeteer/puppeteer:21
+FROM ghcr.io/puppeteer/puppeteer:22
 COPY --from=deno /deno /usr/local/bin/deno
 
 EXPOSE 8000

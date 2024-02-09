@@ -5,13 +5,13 @@ import {
   type RouterMiddleware,
   Status,
 } from "https://deno.land/x/oak@v13.0.0/mod.ts";
-import puppeteer from "npm:puppeteer@21";
+import puppeteer from "npm:puppeteer@22";
 
 export async function screenshotMiddleware<
   R extends string,
 >(): Promise<RouterMiddleware<R>> {
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     ignoreHTTPSErrors: true,
   });
 
@@ -21,7 +21,7 @@ export async function screenshotMiddleware<
     const width = Number(context.request.url.searchParams.get("width") ?? 0);
     const height = Number(context.request.url.searchParams.get("height") ?? 0);
 
-    const ctx = await browser.createIncognitoBrowserContext();
+    const ctx = await browser.createBrowserContext();
     let data: Buffer;
     try {
       const page = await ctx.newPage();
