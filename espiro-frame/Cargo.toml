@@ -31,9 +31,11 @@ embassy = [
 anyhow = "1.0.79"
 esp-idf-svc = { version = "0.48", default-features = false }
 log = { version = "0.4", default-features = false }
+toml-cfg = "0.1.3"
 waveshare-epd = { version = "0.2.0", features = [
     "epd_12in48b",
 ], path = "../waveshare-epd" }
 
 [build-dependencies]
 embuild = "0.31.3"
+toml-cfg = "0.1.3"
