@@ -10,18 +10,15 @@ use futures::future;
 use log::info;
 use std::{thread, time::Duration};
 
-pub const WIDTH: usize = 1304;
-pub const HEIGHT: usize = 984;
+pub const EPD_WIDTH: usize = 1304;
+pub const EPD_HEIGHT: usize = 984;
 
-const M1_WIDTH: usize = 648;
-const M1_HEIGHT: usize = HEIGHT / 2;
-const S1_WIDTH: usize = WIDTH - M1_WIDTH;
-const S1_HEIGHT: usize = HEIGHT / 2;
+pub const LEFT_WIDTH: usize = 648;
+pub const RIGHT_WIDTH: usize = EPD_WIDTH - LEFT_WIDTH;
+pub const HALF_HEIGHT: usize = EPD_HEIGHT / 2;
 
-const S2_WIDTH: usize = 648;
-const S2_HEIGHT: usize = HEIGHT / 2;
-const M2_WIDTH: usize = WIDTH - S2_WIDTH;
-const M2_HEIGHT: usize = HEIGHT / 2;
+const LEFT_BYTES: usize = LEFT_WIDTH / 8;
+const RIGHT_BYTES: usize = RIGHT_WIDTH / 8;
 
 pub struct Epd<'d> {
     spi: SpiDriver<'d>,
@@ -135,17 +132,70 @@ impl<'d> Epd<'d> {
         // M2 part 656*492
         // S2 part 648*492
         self.m1s1m2s2_send_command(0x10)?;
-        self.m1_send_data(&[0xff; M1_HEIGHT * M1_WIDTH / 8])?;
-        self.s1_send_data(&[0xff; S1_HEIGHT * S1_WIDTH / 8])?;
-        self.m2_send_data(&[0xff; M2_HEIGHT * M2_WIDTH / 8])?;
-        self.s2_send_data(&[0xff; S2_HEIGHT * S2_WIDTH / 8])?;
+        self.s2_send_data(&[0xff; LEFT_BYTES * HALF_HEIGHT])?;
+        self.m2_send_data(&[0xff; RIGHT_BYTES * HALF_HEIGHT])?;
+        self.m1_send_data(&[0xff; LEFT_BYTES * HALF_HEIGHT])?;
+        self.s1_send_data(&[0xff; RIGHT_BYTES * HALF_HEIGHT])?;
 
         self.m1s1m2s2_send_command(0x13)?;
-        self.m1_send_data(&[0x00; M1_HEIGHT * M1_WIDTH / 8])?;
-        self.s1_send_data(&[0x00; S1_HEIGHT * S1_WIDTH / 8])?;
-        self.m2_send_data(&[0x00; M2_HEIGHT * M2_WIDTH / 8])?;
-        self.s2_send_data(&[0x00; S2_HEIGHT * S2_WIDTH / 8])?;
+        self.s2_send_data(&[0x00; LEFT_BYTES * HALF_HEIGHT])?;
+        self.m2_send_data(&[0x00; RIGHT_BYTES * HALF_HEIGHT])?;
+        self.m1_send_data(&[0x00; LEFT_BYTES * HALF_HEIGHT])?;
+        self.s1_send_data(&[0x00; RIGHT_BYTES * HALF_HEIGHT])?;
 
+        Ok(())
+    }
+
+    /// Bottom left.
+    pub fn m1_display(
+        &mut self,
+        white: &[u8; LEFT_BYTES * HALF_HEIGHT],
+        red: &[u8; LEFT_BYTES * HALF_HEIGHT],
+    ) -> Result<()> {
+        self.m1_send_command(0x10)?;
+        self.m1_send_data(white)?;
+
+        self.m1_send_command(0x13)?;
+        self.m1_send_data(red)?;
+        Ok(())
+    }
+    /// Bottom right.
+    pub fn s1_display(
+        &mut self,
+        white: &[u8; RIGHT_BYTES * HALF_HEIGHT],
+        red: &[u8; RIGHT_BYTES * HALF_HEIGHT],
+    ) -> Result<()> {
+        self.s1_send_command(0x10)?;
+        self.s1_send_data(white)?;
+
+        self.s1_send_command(0x13)?;
+        self.s1_send_data(red)?;
+        Ok(())
+    }
+    /// Top right.
+    pub fn m2_display(
+        &mut self,
+        white: &[u8; RIGHT_BYTES * HALF_HEIGHT],
+        red: &[u8; RIGHT_BYTES * HALF_HEIGHT],
+    ) -> Result<()> {
+        self.m2_send_command(0x10)?;
+        self.m2_send_data(white)?;
+
+        self.m2_send_command(0x13)?;
+        self.m2_send_data(red)?;
+        Ok(())
+    }
+    /// Top left.
+    pub fn s2_display(
+        &mut self,
+        white: &[u8; LEFT_BYTES * HALF_HEIGHT],
+        red: &[u8; LEFT_BYTES * HALF_HEIGHT],
+    ) -> Result<()> {
+        self.s2_send_command(0x10)?;
+        self.s2_send_data(white)?;
+
+        self.s2_send_command(0x13)?;
+        self.s2_send_data(red)?;
         Ok(())
     }
 
@@ -192,6 +242,13 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    fn m1_send_command(&mut self, reg: u8) -> Result<()> {
+        let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.m1_cs.reborrow()), &spi_config())?;
+
+        self.m1s1_dc.set_low()?;
+        spi.write(&[reg])?;
+        Ok(())
+    }
     fn m1_send_data(&mut self, data: &[u8]) -> Result<()> {
         let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.m1_cs.reborrow()), &spi_config())?;
 
@@ -200,6 +257,13 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    fn s1_send_command(&mut self, reg: u8) -> Result<()> {
+        let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.s1_cs.reborrow()), &spi_config())?;
+
+        self.m1s1_dc.set_low()?;
+        spi.write(&[reg])?;
+        Ok(())
+    }
     fn s1_send_data(&mut self, data: &[u8]) -> Result<()> {
         let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.s1_cs.reborrow()), &spi_config())?;
 
@@ -208,6 +272,13 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    fn m2_send_command(&mut self, reg: u8) -> Result<()> {
+        let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.m2_cs.reborrow()), &spi_config())?;
+
+        self.m2s2_dc.set_low()?;
+        spi.write(&[reg])?;
+        Ok(())
+    }
     fn m2_send_data(&mut self, data: &[u8]) -> Result<()> {
         let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.m2_cs.reborrow()), &spi_config())?;
 
@@ -216,6 +287,13 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
+    fn s2_send_command(&mut self, reg: u8) -> Result<()> {
+        let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.s2_cs.reborrow()), &spi_config())?;
+
+        self.m2s2_dc.set_low()?;
+        spi.write(&[reg])?;
+        Ok(())
+    }
     fn s2_send_data(&mut self, data: &[u8]) -> Result<()> {
         let mut spi = SpiDeviceDriver::new(&self.spi, Some(self.s2_cs.reborrow()), &spi_config())?;
 
