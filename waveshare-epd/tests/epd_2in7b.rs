@@ -1,3 +1,4 @@
+#[cfg(feature = "epd_2in7b")]
 use waveshare_epd::epd_2in7b::{pack_buffer, Epd};
 
 #[test]
