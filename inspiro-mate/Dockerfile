@@ -8,5 +8,5 @@ WORKDIR /app
 COPY src .
 RUN deno cache server.ts
 
-CMD ["deno", "run", "-A", "server.ts"]
+CMD ["deno", "run", "-A", "--unstable-kv", "--unstable-temporal", "server.ts"]
 

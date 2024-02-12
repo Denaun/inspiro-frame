@@ -3,9 +3,9 @@
   "tasks": {
     "install-chrome": "deno run npm:puppeteer@22 browsers install chrome",
     "check": "deno fmt --check && deno lint && deno check **/*.ts",
-    "start": "deno run -A --watch=src src/server.ts",
-    "test": "deno test -A --watch **/*_test.ts",
-    "preview": "deno run -A src/server.ts"
+    "start": "deno run -A --unstable-kv --unstable-temporal --watch=src src/server.ts",
+    "test": "deno test -A --watch --unstable-kv --unstable-temporal **/*_test.ts",
+    "preview": "deno run -A --unstable-kv --unstable-temporal src/server.ts"
   },
   "lint": {
     "rules": {
