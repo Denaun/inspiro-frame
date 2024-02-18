@@ -1,6 +1,5 @@
-use std::time::Duration;
-
 use anyhow::{anyhow, bail, ensure, Result};
+use core::time::Duration;
 use embedded_svc::http::client::Client as HttpClient;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
@@ -12,6 +11,10 @@ use esp_idf_svc::{
     io::Read,
     log::EspLogger,
     nvs::EspDefaultNvsPartition,
+    sys::{
+        esp, esp_deep_sleep_start, esp_sleep_disable_wakeup_source, esp_sleep_enable_timer_wakeup,
+        esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL,
+    },
     timer::EspTaskTimerService,
     wifi::{AsyncWifi, AuthMethod, ClientConfiguration, Configuration, EspWifi},
 };
@@ -31,6 +34,8 @@ struct Config {
     dashboard_url: &'static str,
     #[default("")]
     mate_endpoint: &'static str,
+    #[default(6)]
+    refreshes_per_day: u64,
 }
 impl Config {
     fn wifi(&self) -> Result<ClientConfiguration> {
@@ -89,7 +94,17 @@ fn main() -> Result<()> {
     }
     block_on(epd.turn_on())?;
     epd.sleep()?;
-    Ok(())
+
+    // TODO: esp-rs/esp-idf-hal#287 - Use sleep API.
+    unsafe {
+        esp!(esp_sleep_disable_wakeup_source(
+            esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL
+        ))?;
+        esp!(esp_sleep_enable_timer_wakeup(
+            86_400_000_000u64 / CONFIG.refreshes_per_day
+        ))?;
+        esp_deep_sleep_start()
+    }
 }
 
 async fn connect_wifi(
