@@ -1,10 +1,12 @@
 // ! 12.48" 3-color
 
 use crate::Result;
+#[cfg(esp32)]
+use esp_idf_hal::{gpio, spi::SPI3};
 use esp_idf_hal::{
-    gpio::{self, AnyOutputPin, Input, Output, PinDriver},
+    gpio::{AnyInputPin, AnyOutputPin, Input, InputPin, Output, OutputPin, PinDriver},
     peripheral::{Peripheral, PeripheralRef},
-    spi::{SpiConfig, SpiDeviceDriver, SpiDriver, SpiDriverConfig, SPI3},
+    spi::{SpiAnyPins, SpiConfig, SpiDeviceDriver, SpiDriver, SpiDriverConfig},
 };
 use futures::future;
 use log::info;
@@ -22,21 +24,23 @@ const RIGHT_BYTES: usize = RIGHT_WIDTH / 8;
 
 pub struct Epd<'d> {
     spi: SpiDriver<'d>,
-    m1_cs: PeripheralRef<'d, gpio::Gpio23>,
-    s1_cs: PeripheralRef<'d, gpio::Gpio22>,
-    m2_cs: PeripheralRef<'d, gpio::Gpio16>,
-    s2_cs: PeripheralRef<'d, gpio::Gpio19>,
-    m1s1_dc: PinDriver<'d, gpio::Gpio25, Output>,
-    m2s2_dc: PinDriver<'d, gpio::Gpio17, Output>,
-    m1s1_rst: PinDriver<'d, gpio::Gpio33, Output>,
-    m2s2_rst: PinDriver<'d, gpio::Gpio5, Output>,
-    m1_busy: PinDriver<'d, gpio::Gpio32, Input>,
-    s1_busy: PinDriver<'d, gpio::Gpio26, Input>,
-    m2_busy: PinDriver<'d, gpio::Gpio18, Input>,
-    s2_busy: PinDriver<'d, gpio::Gpio4, Input>,
+    m1_cs: PeripheralRef<'d, AnyOutputPin>,
+    s1_cs: PeripheralRef<'d, AnyOutputPin>,
+    m2_cs: PeripheralRef<'d, AnyOutputPin>,
+    s2_cs: PeripheralRef<'d, AnyOutputPin>,
+    m1s1_dc: PinDriver<'d, AnyOutputPin, Output>,
+    m2s2_dc: PinDriver<'d, AnyOutputPin, Output>,
+    m1s1_rst: PinDriver<'d, AnyOutputPin, Output>,
+    m2s2_rst: Option<PinDriver<'d, AnyOutputPin, Output>>,
+    m1_busy: PinDriver<'d, AnyInputPin, Input>,
+    s1_busy: PinDriver<'d, AnyInputPin, Input>,
+    m2_busy: PinDriver<'d, AnyInputPin, Input>,
+    s2_busy: PinDriver<'d, AnyInputPin, Input>,
 }
+
 impl<'d> Epd<'d> {
-    pub fn new(spi: impl Peripheral<P = SPI3> + 'd, pins: gpio::Pins) -> Result<Self> {
+    #[cfg(esp32)]
+    pub fn waveshare(spi: impl Peripheral<P = SPI3> + 'd, pins: gpio::Pins) -> Result<Self> {
         Ok(Self {
             spi: SpiDriver::new(
                 spi,
@@ -45,18 +49,55 @@ impl<'d> Epd<'d> {
                 None::<gpio::Gpio12>,
                 &SpiDriverConfig::new(),
             )?,
-            m1_cs: pins.gpio23.into_ref(),
-            s1_cs: pins.gpio22.into_ref(),
-            m2_cs: pins.gpio16.into_ref(),
-            s2_cs: pins.gpio19.into_ref(),
-            m1s1_dc: PinDriver::output(pins.gpio25)?,
-            m2s2_dc: PinDriver::output(pins.gpio17)?,
-            m1s1_rst: PinDriver::output(pins.gpio33)?,
-            m2s2_rst: PinDriver::output(pins.gpio5)?,
-            m1_busy: PinDriver::input(pins.gpio32)?,
-            s1_busy: PinDriver::input(pins.gpio26)?,
-            m2_busy: PinDriver::input(pins.gpio18)?,
-            s2_busy: PinDriver::input(pins.gpio4)?,
+            m1_cs: pins.gpio23.downgrade_output().into_ref(),
+            s1_cs: pins.gpio22.downgrade_output().into_ref(),
+            m2_cs: pins.gpio16.downgrade_output().into_ref(),
+            s2_cs: pins.gpio19.downgrade_output().into_ref(),
+            m1s1_dc: PinDriver::output(pins.gpio25.downgrade_output())?,
+            m2s2_dc: PinDriver::output(pins.gpio17.downgrade_output())?,
+            m1s1_rst: PinDriver::output(pins.gpio33.downgrade_output())?,
+            m2s2_rst: Some(PinDriver::output(pins.gpio5.downgrade_output())?),
+            m1_busy: PinDriver::input(pins.gpio32.downgrade_input())?,
+            s1_busy: PinDriver::input(pins.gpio26.downgrade_input())?,
+            m2_busy: PinDriver::input(pins.gpio18.downgrade_input())?,
+            s2_busy: PinDriver::input(pins.gpio4.downgrade_input())?,
+        })
+    }
+
+    pub fn custom(
+        spi: impl Peripheral<P = impl SpiAnyPins> + 'd,
+        sclk: impl OutputPin + 'd,
+        sdo: impl OutputPin + 'd,
+        m1_cs: impl OutputPin + 'd,
+        s1_cs: impl OutputPin + 'd,
+        m2_cs: impl OutputPin + 'd,
+        s2_cs: impl OutputPin + 'd,
+        m1s1_dc: impl OutputPin + 'd,
+        m2s2_dc: impl OutputPin + 'd,
+        m1s1_rst: impl OutputPin + 'd,
+        m2s2_rst: Option<impl OutputPin + 'd>,
+        m1_busy: impl InputPin + 'd,
+        s1_busy: impl InputPin + 'd,
+        m2_busy: impl InputPin + 'd,
+        s2_busy: impl InputPin + 'd,
+    ) -> Result<Self> {
+        Ok(Self {
+            spi: SpiDriver::new(spi, sclk, sdo, None::<AnyInputPin>, &SpiDriverConfig::new())?,
+            m1_cs: m1_cs.downgrade_output().into_ref(),
+            s1_cs: s1_cs.downgrade_output().into_ref(),
+            m2_cs: m2_cs.downgrade_output().into_ref(),
+            s2_cs: s2_cs.downgrade_output().into_ref(),
+            m1s1_dc: PinDriver::output(m1s1_dc.downgrade_output())?,
+            m2s2_dc: PinDriver::output(m2s2_dc.downgrade_output())?,
+            m1s1_rst: PinDriver::output(m1s1_rst.downgrade_output())?,
+            m2s2_rst: match m2s2_rst {
+                Some(pin) => Some(PinDriver::output(pin.downgrade_output())?),
+                None => None,
+            },
+            m1_busy: PinDriver::input(m1_busy.downgrade_input())?,
+            s1_busy: PinDriver::input(s1_busy.downgrade_input())?,
+            m2_busy: PinDriver::input(m2_busy.downgrade_input())?,
+            s2_busy: PinDriver::input(s2_busy.downgrade_input())?,
         })
     }
 
@@ -231,13 +272,19 @@ impl<'d> Epd<'d> {
 
     pub fn reset(&mut self) -> Result<()> {
         self.m1s1_rst.set_high()?;
-        self.m2s2_rst.set_high()?;
+        if let Some(pin) = &mut self.m2s2_rst {
+            pin.set_high()?;
+        }
         thread::sleep(Duration::from_millis(200));
         self.m1s1_rst.set_low()?;
-        self.m2s2_rst.set_low()?;
+        if let Some(pin) = &mut self.m2s2_rst {
+            pin.set_low()?;
+        }
         thread::sleep(Duration::from_millis(5));
         self.m1s1_rst.set_high()?;
-        self.m2s2_rst.set_high()?;
+        if let Some(pin) = &mut self.m2s2_rst {
+            pin.set_high()?;
+        }
         thread::sleep(Duration::from_millis(200));
         Ok(())
     }

@@ -3,7 +3,7 @@ use core::time::Duration;
 use embedded_svc::http::client::Client as HttpClient;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    hal::{peripherals::Peripherals, task::block_on},
+    hal::{gpio::AnyOutputPin, peripherals::Peripherals, task::block_on},
     http::{
         client::{Configuration as HttpConfiguration, EspHttpConnection},
         headers::{content_len, content_type, ContentLenParseBuf},
@@ -83,7 +83,26 @@ fn main() -> Result<()> {
     let id = take_screenshot(&mut http_client, CONFIG.mate_endpoint, CONFIG.dashboard_url)?;
     info!("Created screenshot '{}'", id);
 
-    let mut epd = Epd::new(peripherals.spi3, peripherals.pins)?;
+    #[cfg(esp32)]
+    let mut epd = Epd::waveshare(peripherals.spi3, peripherals.pins)?;
+    #[cfg(esp32c3)]
+    let mut epd = Epd::custom(
+        peripherals.spi2,
+        peripherals.pins.gpio4,
+        peripherals.pins.gpio3,
+        peripherals.pins.gpio5,
+        peripherals.pins.gpio6,
+        peripherals.pins.gpio7,
+        peripherals.pins.gpio8,
+        peripherals.pins.gpio2,
+        peripherals.pins.gpio1,
+        peripherals.pins.gpio0,
+        None::<AnyOutputPin>,
+        peripherals.pins.gpio9,
+        peripherals.pins.gpio10,
+        peripherals.pins.gpio20,
+        peripherals.pins.gpio21,
+    )?;
     epd.init()?;
     match display(&mut http_client, CONFIG.mate_endpoint, &mut epd, &id) {
         Err(e) => {
