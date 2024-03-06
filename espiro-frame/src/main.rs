@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, ensure, Result};
 use core::time::Duration;
-use embedded_svc::http::client::Client as HttpClient;
+use embedded_svc::http::client::{Client as HttpClient, Response};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     hal::{gpio::AnyOutputPin, peripherals::Peripherals, task::block_on},
@@ -69,20 +69,6 @@ fn main() -> Result<()> {
     let timer_service = EspTaskTimerService::new()?;
     let nvs = EspDefaultNvsPartition::take()?;
 
-    let mut wifi = AsyncWifi::wrap(
-        EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
-        sys_loop,
-        timer_service,
-    )?;
-    block_on(connect_wifi(&mut wifi, CONFIG.wifi()?))?;
-
-    let mut http_client = HttpClient::wrap(EspHttpConnection::new(&HttpConfiguration {
-        timeout: Some(Duration::from_secs(30)),
-        ..Default::default()
-    })?);
-    let id = take_screenshot(&mut http_client, CONFIG.mate_endpoint, CONFIG.dashboard_url)?;
-    info!("Created screenshot '{}'", id);
-
     #[cfg(esp32)]
     let mut epd = Epd::waveshare(peripherals.spi3, peripherals.pins)?;
     #[cfg(esp32c3)]
@@ -104,13 +90,29 @@ fn main() -> Result<()> {
         peripherals.pins.gpio21,
     )?;
     epd.init()?;
-    match display(&mut http_client, CONFIG.mate_endpoint, &mut epd, &id) {
-        Err(e) => {
-            error!("Display failed: {}", e);
-            epd.clear()?;
+
+    {
+        let mut wifi = AsyncWifi::wrap(
+            EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
+            sys_loop,
+            timer_service,
+        )?;
+        block_on(connect_wifi(&mut wifi, CONFIG.wifi()?))?;
+
+        let mut http_client = HttpClient::wrap(EspHttpConnection::new(&HttpConfiguration {
+            timeout: Some(Duration::from_secs(30)),
+            ..Default::default()
+        })?);
+        let id = take_screenshot(&mut http_client, CONFIG.mate_endpoint, CONFIG.dashboard_url)?;
+        info!("Created screenshot '{}'", id);
+        match display(&mut http_client, CONFIG.mate_endpoint, &mut epd, &id) {
+            Err(e) => {
+                error!("Display failed: {}", e);
+            }
+            _ => {}
         }
-        _ => {}
     }
+
     block_on(epd.turn_on())?;
     epd.sleep()?;
 
@@ -177,59 +179,74 @@ fn display(
     epd: &mut Epd,
     id: &str,
 ) -> Result<()> {
-    info!("s2");
-    let (white, red) = fetch_quadrant(client, endpoint, &id, 0, 0, LEFT_WIDTH, HALF_HEIGHT)?;
-    epd.s2_display(&white.try_into().unwrap(), &red.try_into().unwrap())?;
-    info!("m2");
-    let (white, red) = fetch_quadrant(
-        client,
-        endpoint,
-        &id,
-        LEFT_WIDTH,
-        0,
-        RIGHT_WIDTH,
-        HALF_HEIGHT,
-    )?;
-    epd.m2_display(&white.try_into().unwrap(), &red.try_into().unwrap())?;
-    info!("m1");
-    let (white, red) = fetch_quadrant(
-        client,
-        endpoint,
-        &id,
-        0,
-        HALF_HEIGHT,
-        LEFT_WIDTH,
-        HALF_HEIGHT,
-    )?;
-    epd.m1_display(&white.try_into().unwrap(), &red.try_into().unwrap())?;
-    info!("s1");
-    let (white, red) = fetch_quadrant(
-        client,
-        endpoint,
-        &id,
-        LEFT_WIDTH,
-        HALF_HEIGHT,
-        RIGHT_WIDTH,
-        HALF_HEIGHT,
-    )?;
-    epd.s1_display(&white.try_into().unwrap(), &red.try_into().unwrap())?;
+    {
+        let mut buf = [0; RIGHT_WIDTH * HALF_HEIGHT / 8];
+
+        info!("s1");
+        let uri = quadrant_uri(
+            endpoint,
+            &id,
+            LEFT_WIDTH,
+            HALF_HEIGHT,
+            RIGHT_WIDTH,
+            HALF_HEIGHT,
+        );
+        let mut response = fetch_quadrant(client, &uri, 2 * RIGHT_WIDTH * HALF_HEIGHT / 8)?;
+        response.read_exact(&mut buf)?;
+        epd.s1_display_white(&buf)?;
+        response.read_exact(&mut buf)?;
+        epd.s1_display_red(&buf)?;
+
+        info!("m2");
+        let uri = quadrant_uri(endpoint, &id, LEFT_WIDTH, 0, RIGHT_WIDTH, HALF_HEIGHT);
+        let mut response = fetch_quadrant(client, &uri, 2 * RIGHT_WIDTH * HALF_HEIGHT / 8)?;
+        response.read_exact(&mut buf)?;
+        epd.m2_display_white(&buf)?;
+        response.read_exact(&mut buf)?;
+        epd.m2_display_red(&buf)?;
+    }
+
+    {
+        let mut buf = [0; LEFT_WIDTH * HALF_HEIGHT / 8];
+
+        info!("m1");
+        let uri = quadrant_uri(endpoint, &id, 0, HALF_HEIGHT, LEFT_WIDTH, HALF_HEIGHT);
+        let mut response = fetch_quadrant(client, &uri, 2 * LEFT_WIDTH * HALF_HEIGHT / 8)?;
+        response.read_exact(&mut buf)?;
+        epd.m1_display_white(&buf)?;
+        response.read_exact(&mut buf)?;
+        epd.m1_display_red(&buf)?;
+
+        info!("s2");
+        let uri = quadrant_uri(endpoint, &id, 0, 0, LEFT_WIDTH, HALF_HEIGHT);
+        let mut response = fetch_quadrant(client, &uri, 2 * LEFT_WIDTH * HALF_HEIGHT / 8)?;
+        response.read_exact(&mut buf)?;
+        epd.s2_display_white(&buf)?;
+        response.read_exact(&mut buf)?;
+        epd.s2_display_red(&buf)?;
+    }
+
     Ok(())
 }
 
-fn fetch_quadrant(
-    client: &mut HttpClient<EspHttpConnection>,
+fn quadrant_uri(
     endpoint: &str,
     id: &str,
     x: usize,
     y: usize,
     width: usize,
     height: usize,
-) -> Result<(Vec<u8>, Vec<u8>)> {
-    let uri = format!(
-        "{endpoint}/screenshots/{id}?x={x}&y={y}&width={width}&height={height}&format=bwr-raw"
-    );
+) -> String {
+    format!("{endpoint}/screenshots/{id}?x={x}&y={y}&width={width}&height={height}&format=bwr-raw")
+}
+
+fn fetch_quadrant<'a>(
+    client: &'a mut HttpClient<EspHttpConnection>,
+    uri: &'a str,
+    expected: usize,
+) -> Result<Response<&'a mut EspHttpConnection>> {
     info!("Fetching quadrant from {}", uri);
-    let mut response = client.get(&uri)?.submit()?;
+    let response = client.get(&uri)?.submit()?;
     match response.status() {
         200..=299 => {}
         status => bail!("Unexpected response code: {}", status),
@@ -238,11 +255,6 @@ fn fetch_quadrant(
         .header("Content-Length")
         .ok_or(anyhow!("endpoint didn't set Content-Length"))?
         .parse()?;
-    let expected = 2 * width * height / 8;
     ensure!(len == expected, "expected {expected} bytes, got {len}");
-    let mut white = vec![0; len / 2];
-    let mut red = vec![0; len / 2];
-    response.read_exact(&mut white)?;
-    response.read_exact(&mut red)?;
-    Ok((white, red))
+    Ok(response)
 }

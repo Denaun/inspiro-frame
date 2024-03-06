@@ -187,54 +187,53 @@ impl<'d> Epd<'d> {
         Ok(())
     }
 
-    /// Bottom left.
-    pub fn m1_display(
-        &mut self,
-        white: &[u8; LEFT_BYTES * HALF_HEIGHT],
-        red: &[u8; LEFT_BYTES * HALF_HEIGHT],
-    ) -> Result<()> {
+    /// Write the bottom left white buffer.
+    pub fn m1_display_white(&mut self, white: &[u8; LEFT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.m1_send_command(0x10)?;
         self.m1_send_data(white)?;
-
+        Ok(())
+    }
+    /// Write the bottom left red buffer.
+    pub fn m1_display_red(&mut self, red: &[u8; LEFT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.m1_send_command(0x13)?;
         self.m1_send_data(red)?;
         Ok(())
     }
-    /// Bottom right.
-    pub fn s1_display(
-        &mut self,
-        white: &[u8; RIGHT_BYTES * HALF_HEIGHT],
-        red: &[u8; RIGHT_BYTES * HALF_HEIGHT],
-    ) -> Result<()> {
+
+    /// Write the bottom right white buffer.
+    pub fn s1_display_white(&mut self, white: &[u8; RIGHT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.s1_send_command(0x10)?;
         self.s1_send_data(white)?;
-
+        Ok(())
+    }
+    /// Write the bottom right red buffer.
+    pub fn s1_display_red(&mut self, red: &[u8; RIGHT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.s1_send_command(0x13)?;
         self.s1_send_data(red)?;
         Ok(())
     }
-    /// Top right.
-    pub fn m2_display(
-        &mut self,
-        white: &[u8; RIGHT_BYTES * HALF_HEIGHT],
-        red: &[u8; RIGHT_BYTES * HALF_HEIGHT],
-    ) -> Result<()> {
+
+    /// Write the top right white buffer.
+    pub fn m2_display_white(&mut self, white: &[u8; RIGHT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.m2_send_command(0x10)?;
         self.m2_send_data(white)?;
-
+        Ok(())
+    }
+    /// Write the top right red buffer.
+    pub fn m2_display_red(&mut self, red: &[u8; RIGHT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.m2_send_command(0x13)?;
         self.m2_send_data(red)?;
         Ok(())
     }
-    /// Top left.
-    pub fn s2_display(
-        &mut self,
-        white: &[u8; LEFT_BYTES * HALF_HEIGHT],
-        red: &[u8; LEFT_BYTES * HALF_HEIGHT],
-    ) -> Result<()> {
+
+    /// Write the top left white buffer.
+    pub fn s2_display_white(&mut self, white: &[u8; LEFT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.s2_send_command(0x10)?;
         self.s2_send_data(white)?;
-
+        Ok(())
+    }
+    /// Write the top left red buffer.
+    pub fn s2_display_red(&mut self, red: &[u8; LEFT_BYTES * HALF_HEIGHT]) -> Result<()> {
         self.s2_send_command(0x13)?;
         self.s2_send_data(red)?;
         Ok(())
