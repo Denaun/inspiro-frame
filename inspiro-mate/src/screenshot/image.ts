@@ -21,10 +21,10 @@ export function ditherInplace(
       image.setPixel(x, y, newColor);
 
       const error = sub(oldColor, newColor);
-      errors.tryMadPixel(x + 1, y, error, 7 / 16);
-      errors.tryMadPixel(x - 1, y + 1, error, 3 / 16);
-      errors.tryMadPixel(x, y + 1, error, 5 / 16);
-      errors.tryMadPixel(x + 1, y + 1, error, 1 / 16);
+      // Sierra Lite
+      errors.tryMadPixel(x + 1, y, error, 2 / 4);
+      errors.tryMadPixel(x - 1, y + 1, error, 1 / 4);
+      errors.tryMadPixel(x, y + 1, error, 1 / 4);
     }
   }
 }
