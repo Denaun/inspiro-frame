@@ -3,7 +3,7 @@ use core::time::Duration;
 use embedded_svc::http::client::{Client as HttpClient, Response};
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
-    hal::{gpio::AnyOutputPin, peripherals::Peripherals, task::block_on},
+    hal::{gpio::AnyOutputPin, modem::Modem, peripherals::Peripherals, task::block_on},
     http::{
         client::{Configuration as HttpConfiguration, EspHttpConnection},
         headers::{content_len, content_type, ContentLenParseBuf},
@@ -62,12 +62,27 @@ fn main() -> Result<()> {
 
     // Bind the log crate to the ESP Logging facilities
     EspLogger::initialize_default();
+
+    if let Err(e) = refresh() {
+        error!("Refresh error: {}", e);
+    }
+
+    // TODO: esp-rs/esp-idf-hal#287 - Use sleep API.
+    unsafe {
+        esp!(esp_sleep_disable_wakeup_source(
+            esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL
+        ))?;
+        esp!(esp_sleep_enable_timer_wakeup(
+            86_400_000_000u64 / CONFIG.refreshes_per_day
+        ))?;
+        esp_deep_sleep_start()
+    }
+}
+
+fn refresh() -> Result<()> {
     EspLogger {}.set_target_level("waveshare_epd", log::LevelFilter::Debug)?;
 
     let peripherals = Peripherals::take()?;
-    let sys_loop = EspSystemEventLoop::take()?;
-    let timer_service = EspTaskTimerService::new()?;
-    let nvs = EspDefaultNvsPartition::take()?;
 
     #[cfg(esp32)]
     let mut epd = Epd::waveshare(peripherals.spi3, peripherals.pins)?;
@@ -91,41 +106,32 @@ fn main() -> Result<()> {
     )?;
     epd.init()?;
 
-    {
-        let mut wifi = AsyncWifi::wrap(
-            EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
-            sys_loop,
-            timer_service,
-        )?;
-        block_on(connect_wifi(&mut wifi, CONFIG.wifi()?))?;
+    let display_result =
+        fetch_and_display(peripherals.modem, &mut epd).and_then(|_| Ok(block_on(epd.turn_on())?));
 
-        let mut http_client = HttpClient::wrap(EspHttpConnection::new(&HttpConfiguration {
-            timeout: Some(Duration::from_secs(30)),
-            ..Default::default()
-        })?);
-        let id = take_screenshot(&mut http_client, CONFIG.mate_endpoint, CONFIG.dashboard_url)?;
-        info!("Created screenshot '{}'", id);
-        match display(&mut http_client, CONFIG.mate_endpoint, &mut epd, &id) {
-            Err(e) => {
-                error!("Display failed: {}", e);
-            }
-            _ => {}
-        }
-    }
-
-    block_on(epd.turn_on())?;
     epd.sleep()?;
+    display_result
+}
 
-    // TODO: esp-rs/esp-idf-hal#287 - Use sleep API.
-    unsafe {
-        esp!(esp_sleep_disable_wakeup_source(
-            esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL
-        ))?;
-        esp!(esp_sleep_enable_timer_wakeup(
-            86_400_000_000u64 / CONFIG.refreshes_per_day
-        ))?;
-        esp_deep_sleep_start()
-    }
+fn fetch_and_display(modem: Modem, epd: &mut Epd) -> Result<()> {
+    let sys_loop = EspSystemEventLoop::take()?;
+    let timer_service = EspTaskTimerService::new()?;
+    let nvs = EspDefaultNvsPartition::take()?;
+
+    let mut wifi = AsyncWifi::wrap(
+        EspWifi::new(modem, sys_loop.clone(), Some(nvs))?,
+        sys_loop,
+        timer_service,
+    )?;
+    block_on(connect_wifi(&mut wifi, CONFIG.wifi()?))?;
+
+    let mut http_client = HttpClient::wrap(EspHttpConnection::new(&HttpConfiguration {
+        timeout: Some(Duration::from_secs(30)),
+        ..Default::default()
+    })?);
+    let id = take_screenshot(&mut http_client, CONFIG.mate_endpoint, CONFIG.dashboard_url)?;
+    info!("Created screenshot '{}'", id);
+    display(&mut http_client, CONFIG.mate_endpoint, epd, &id)
 }
 
 async fn connect_wifi(
