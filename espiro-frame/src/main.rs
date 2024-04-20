@@ -10,7 +10,7 @@ use esp_idf_svc::{
     },
     io::Read,
     log::EspLogger,
-    nvs::EspDefaultNvsPartition,
+    nvs::{EspDefaultNvsPartition, EspNvs, EspNvsPartition, NvsDefault},
     sys::{
         esp, esp_deep_sleep_start, esp_sleep_disable_wakeup_source, esp_sleep_enable_timer_wakeup,
         esp_sleep_source_t_ESP_SLEEP_WAKEUP_ALL,
@@ -22,6 +22,9 @@ use log::{error, info};
 use waveshare_epd::epd_12in48b::{
     Epd, EPD_HEIGHT, EPD_WIDTH, HALF_HEIGHT, LEFT_WIDTH, RIGHT_WIDTH,
 };
+
+const NAMESPACE: &'static str = "espiro_frame";
+const REFRESHES: &'static str = "refreshes";
 
 #[derive(Debug)]
 #[toml_cfg::toml_config]
@@ -104,13 +107,29 @@ fn refresh() -> Result<()> {
         peripherals.pins.gpio20,
         peripherals.pins.gpio21,
     )?;
-    epd.init()?;
 
+    daily_clear(&mut epd)?;
+
+    epd.init()?;
     let display_result =
         fetch_and_display(peripherals.modem, &mut epd).and_then(|_| Ok(block_on(epd.turn_on())?));
-
     epd.sleep()?;
     display_result
+}
+
+fn daily_clear(epd: &mut Epd) -> Result<()> {
+    let partition: EspNvsPartition<NvsDefault> = EspDefaultNvsPartition::take()?;
+    let nvs = EspNvs::new(partition, NAMESPACE, true)?;
+    let refreshes = nvs.get_u64(REFRESHES)?.unwrap_or_default();
+    info!("Refresh {}", refreshes);
+    if refreshes == 0 {
+        epd.init()?;
+        epd.clear()?;
+        block_on(epd.turn_on())?;
+        epd.sleep()?;
+    }
+    nvs.set_u64(REFRESHES, (refreshes + 1) % CONFIG.refreshes_per_day)?;
+    Ok(())
 }
 
 fn fetch_and_display(modem: Modem, epd: &mut Epd) -> Result<()> {
