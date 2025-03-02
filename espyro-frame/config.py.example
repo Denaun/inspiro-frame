@@ -1,0 +1,33 @@
+from micropython import const
+
+WIFI_SSID = "ssid"
+WIFI_PASSWORD = "password"
+MATE_ENDPOINT = "http://inspiro-mate.home.arpa"
+DASHBOARD_URL = "http://inspiro-mate.home.arpa/inspiration"
+
+# Negative to never refresh.
+REFRESHES_PER_DAY = const(12)
+
+# None to avoid turning on the LED.
+LED: int | None = const(15)
+
+# -1 for Software SPI
+SPI = const(1)
+BAUD_RATE = const(1_000_000)
+
+
+class Pins:
+    SCK = const(23)
+    MOSI = const(22)
+    M1_CS = const(17)
+    S1_CS = const(16)
+    M2_CS = const(8)
+    S2_CS = const(14)
+    M1S1_DC = const(1)
+    M2S2_DC = const(18)
+    M1S1_RST = const(7)
+    M2S2_RST = const(6)
+    M1_BUSY = const(2)
+    S1_BUSY = const(3)
+    M2_BUSY = const(4)
+    S2_BUSY = const(5)
