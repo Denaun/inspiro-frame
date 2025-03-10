@@ -1,4 +1,4 @@
-FROM denoland/deno:bin AS deno
+FROM denoland/deno:bin-1.42.4 AS deno
 FROM ghcr.io/puppeteer/puppeteer:22
 COPY --from=deno /deno /usr/local/bin/deno
 
