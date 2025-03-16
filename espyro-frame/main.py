@@ -1,9 +1,11 @@
 import logging
 import sys
+import time
 
 import app
 import machine
 
+start = time.ticks_us()
 logging.basicConfig(level=logging.DEBUG)
 
 frame = app.App()
@@ -18,4 +20,4 @@ except Exception as e:
     sys.print_exception(e)
 finally:
     if sleep:
-        frame.sleep()
+        frame.sleep(duration_ms=(time.ticks_us() - start) // 1000)

@@ -19,7 +19,7 @@ class App:
                 baudrate=config.BAUD_RATE,
                 sck=config.Pins.SCK,
                 mosi=config.Pins.MOSI,
-                miso=None
+                miso=None,
             ),
             m1_cs=config.Pins.M1_CS,
             s1_cs=config.Pins.S1_CS,
@@ -65,10 +65,10 @@ class App:
         finally:
             self.epd.sleep()
 
-    def sleep(self):
+    def sleep(self, duration_ms: int):
         if config.REFRESHES_PER_DAY <= 0:
             return
-        sleep_ms = 86_400_000 // config.REFRESHES_PER_DAY
+        sleep_ms = 86_400_000 // config.REFRESHES_PER_DAY - duration_ms
         logger.info("sleeping for %sms", sleep_ms)
         machine.deepsleep(sleep_ms)
 
