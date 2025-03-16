@@ -26,7 +26,7 @@ class Pins:
     M1S1_DC = const(1)
     M2S2_DC = const(18)
     M1S1_RST = const(7)
-    M2S2_RST = const(6)
+    M2S2_RST: int | None = None
     M1_BUSY = const(2)
     S1_BUSY = const(3)
     M2_BUSY = const(4)

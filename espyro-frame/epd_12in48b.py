@@ -2,6 +2,7 @@
 
 import logging
 import time
+import struct
 
 import machine
 from micropython import const
@@ -19,58 +20,84 @@ RIGHT_BYTES = const(RIGHT_WIDTH >> 3)
 logger = logging.getLogger(__name__)
 
 
+def _timed(f, *args, **kwargs):
+    myname = str(f).split(" ")[1]
+
+    def new_func(*args, **kwargs):
+        t = time.ticks_us()
+        result = f(*args, **kwargs)
+        delta = time.ticks_diff(time.ticks_us(), t)
+        logger.info("%s time = %6.3fms", myname, delta / 1000)
+        return result
+
+    return new_func
+
+
 class EPD:
     def __init__(
         self,
         spi: machine.SPI,
-        m1_cs: machine.Pin,
-        s1_cs: machine.Pin,
-        m2_cs: machine.Pin,
-        s2_cs: machine.Pin,
-        m1s1_dc: machine.Pin,
-        m2s2_dc: machine.Pin,
-        m1s1_rst: machine.Pin,
-        m2s2_rst: machine.Pin | None,
-        m1_busy: machine.Pin,
-        s1_busy: machine.Pin,
-        m2_busy: machine.Pin,
-        s2_busy: machine.Pin,
+        m1_cs: int,
+        s1_cs: int,
+        m2_cs: int,
+        s2_cs: int,
+        m1s1_dc: int,
+        m2s2_dc: int,
+        m1s1_rst: int,
+        m2s2_rst: int | None,
+        m1_busy: int,
+        s1_busy: int,
+        m2_busy: int,
+        s2_busy: int,
     ) -> EPD:
         self.spi = spi
-        self.m1_cs = m1_cs
-        self.s1_cs = s1_cs
-        self.m2_cs = m2_cs
-        self.s2_cs = s2_cs
-        self.m1s1_dc = m1s1_dc
-        self.m2s2_dc = m2s2_dc
-        self.m1s1_rst = m1s1_rst
-        self.m2s2_rst = m2s2_rst
-        self.m1_busy = m1_busy
-        self.s1_busy = s1_busy
-        self.m2_busy = m2_busy
-        self.s2_busy = s2_busy
+        self.m1_cs = machine.Pin(m1_cs, machine.Pin.OUT)
+        self.s1_cs = machine.Pin(s1_cs, machine.Pin.OUT)
+        self.m2_cs = machine.Pin(m2_cs, machine.Pin.OUT)
+        self.s2_cs = machine.Pin(s2_cs, machine.Pin.OUT)
+        self.m1s1_dc = machine.Pin(m1s1_dc, machine.Pin.OUT)
+        self.m2s2_dc = machine.Pin(m2s2_dc, machine.Pin.OUT)
+        self.m1s1_rst = machine.Pin(
+            m1s1_rst,
+            machine.Pin.OUT,
+            pull=machine.Pin.PULL_UP,
+            hold=True,
+        )
+        if m2s2_rst is not None:
+            self.m2s2_rst = machine.Pin(
+                m2s2_rst,
+                machine.Pin.OUT,
+                pull=machine.Pin.PULL_UP,
+                hold=True,
+            )
+        else:
+            self.m2s2_rst = None
+        self.m1_busy = machine.Pin(m1_busy, machine.Pin.IN)
+        self.s1_busy = machine.Pin(s1_busy, machine.Pin.IN)
+        self.m2_busy = machine.Pin(m2_busy, machine.Pin.IN)
+        self.s2_busy = machine.Pin(s2_busy, machine.Pin.IN)
 
     def waveshare() -> EPD:
         return EPD(
             spi=machine.SPI(
                 3,
                 baudrate=200_000,
-                sck=machine.Pin(14),
-                mosi=machine.Pin(13),
+                sck=14,
+                mosi=13,
                 miso=None,
             ),
-            m1_cs=machine.Pin(23, machine.Pin.OUT),
-            s1_cs=machine.Pin(22, machine.Pin.OUT),
-            m2_cs=machine.Pin(16, machine.Pin.OUT),
-            s2_cs=machine.Pin(19, machine.Pin.OUT),
-            m1s1_dc=machine.Pin(25, machine.Pin.OUT),
-            m2s2_dc=machine.Pin(17, machine.Pin.OUT),
-            m1s1_rst=machine.Pin(33, machine.Pin.OUT),
-            m2s2_rst=machine.Pin(5, machine.Pin.OUT),
-            m1_busy=machine.Pin(32, machine.Pin.IN),
-            s1_busy=machine.Pin(26, machine.Pin.IN),
-            m2_busy=machine.Pin(18, machine.Pin.IN),
-            s2_busy=machine.Pin(4, machine.Pin.IN),
+            m1_cs=23,
+            s1_cs=22,
+            m2_cs=16,
+            s2_cs=19,
+            m1s1_dc=25,
+            m2s2_dc=17,
+            m1s1_rst=33,
+            m2s2_rst=5,
+            m1_busy=32,
+            s1_busy=26,
+            m2_busy=18,
+            s2_busy=4,
         )
 
     def init(self) -> None:
@@ -137,6 +164,7 @@ class EPD:
 
         self._set_lut()
 
+    @_timed
     def clear(self) -> None:
         # M1 part 648*492
         # S1 part 656*492
@@ -155,41 +183,49 @@ class EPD:
         self._m1_send_data(b"\x00" * LEFT_BYTES * HALF_HEIGHT)
         self._s1_send_data(b"\x00" * RIGHT_BYTES * HALF_HEIGHT)
 
+    @_timed
     def m1_display_white(self, white) -> None:
         """Write the bottom left white buffer."""
         self._m1_send_command(b"\x10")
         self._m1_send_data(white)
 
+    @_timed
     def m1_display_red(self, red) -> None:
         """Write the bottom left red buffer."""
         self._m1_send_command(b"\x13")
         self._m1_send_data(red)
 
+    @_timed
     def s1_display_white(self, white) -> None:
         """Write the bottom right white buffer."""
         self._s1_send_command(b"\x10")
         self._s1_send_data(white)
 
+    @_timed
     def s1_display_red(self, red) -> None:
         """Write the bottom right red buffer."""
         self._s1_send_command(b"\x13")
         self._s1_send_data(red)
 
+    @_timed
     def m2_display_white(self, white) -> None:
         """Write the top right white buffer."""
         self._m2_send_command(b"\x10")
         self._m2_send_data(white)
 
+    @_timed
     def m2_display_red(self, red) -> None:
         """Write the top right red buffer."""
         self._m2_send_command(b"\x13")
         self._m2_send_data(red)
 
+    @_timed
     def s2_display_white(self, white) -> None:
         """Write the top left white buffer."""
         self._s2_send_command(b"\x10")
         self._s2_send_data(white)
 
+    @_timed
     def s2_display_red(self, red) -> None:
         """Write the top left red buffer."""
         self._s2_send_command(b"\x13")
@@ -197,21 +233,18 @@ class EPD:
 
     def turn_on(self) -> None:
         self._m1m2_send_command(b"\x04")  # power on
-        time.sleep_ms(300)
+        self._wait_ready()
         self._m1s1m2s2_send_command(b"\x12")  # Display Refresh
 
         logger.info("Busy")
         self._m1s1m2s2_send_command(b"\x71")
-        _wait_for_high(self.m1_busy)
-        _wait_for_high(self.s1_busy)
-        _wait_for_high(self.m2_busy)
-        _wait_for_high(self.s2_busy)
+        self._wait_ready()
         logger.info("Busy free")
 
     def sleep(self) -> None:
         # power off
         self._m1s1m2s2_send_command(b"\x02")
-        time.sleep_ms(300)
+        self._wait_ready()
 
         # deep sleep
         self._m1s1m2s2_send_command(b"\x07")
@@ -219,17 +252,17 @@ class EPD:
         time.sleep_ms(300)
 
     def reset(self) -> None:
-        self.m1s1_rst.on()
+        self.m1s1_rst.init(value=1, hold=False)
         if pin := self.m2s2_rst:
-            pin.on()
+            pin.init(value=1, hold=False)
         time.sleep_ms(200)
         self.m1s1_rst.off()
         if pin := self.m2s2_rst:
             pin.off()
         time.sleep_ms(5)
-        self.m1s1_rst.on()
+        self.m1s1_rst.init(value=1, hold=True)
         if pin := self.m2s2_rst:
-            pin.on()
+            pin.init(value=1, hold=True)
         time.sleep_ms(200)
 
     def _m1_send_command(self, reg: bytes) -> None:
@@ -377,10 +410,17 @@ class EPD:
         self._m1s1m2s2_send_command(b"\x25")  # bb b
         self._m1s1m2s2_send_data(LUT_WW1)  # bb=b
 
-
-def _wait_for_high(pin: machine.Pin):
-    while pin.value() == 0:
-        continue
+    @_timed
+    def _wait_ready(self):
+        m1 = self.m1_busy
+        s1 = self.s1_busy
+        m2 = self.m2_busy
+        s2 = self.s2_busy
+        last = 0
+        while (busy := (s2() << 3) | (m2() << 2) | (s1() << 1) | m1()) != 0b1111:
+            if busy != last:
+                logger.debug("Busy: %x", last)
+                last = busy
 
 
 LUT_VCOM1 = b"""\
