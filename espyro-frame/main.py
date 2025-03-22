@@ -9,10 +9,9 @@ start = time.ticks_us()
 logging.basicConfig(level=logging.DEBUG)
 
 frame = app.App()
-frame.led_on()
-
 sleep = True
 try:
+    frame.led_on()
     frame.refresh()
 except KeyboardInterrupt:
     sleep = False

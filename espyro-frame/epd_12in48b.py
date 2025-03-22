@@ -1,8 +1,9 @@
 # 12.48""" 3-color
 
+import errno
 import logging
-import time
 import struct
+import time
 
 import machine
 from micropython import const
@@ -233,18 +234,18 @@ class EPD:
 
     def turn_on(self) -> None:
         self._m1m2_send_command(b"\x04")  # power on
-        self._wait_ready()
+        self._wait_ready(timeout=1)
         self._m1s1m2s2_send_command(b"\x12")  # Display Refresh
 
         logger.info("Busy")
         self._m1s1m2s2_send_command(b"\x71")
-        self._wait_ready()
+        self._wait_ready(timeout=15)
         logger.info("Busy free")
 
     def sleep(self) -> None:
         # power off
         self._m1s1m2s2_send_command(b"\x02")
-        self._wait_ready()
+        self._wait_ready(timeout=1)
 
         # deep sleep
         self._m1s1m2s2_send_command(b"\x07")
@@ -411,16 +412,19 @@ class EPD:
         self._m1s1m2s2_send_data(LUT_WW1)  # bb=b
 
     @_timed
-    def _wait_ready(self):
+    def _wait_ready(self, timeout):
         m1 = self.m1_busy
         s1 = self.s1_busy
         m2 = self.m2_busy
         s2 = self.s2_busy
         last = 0
+        start = time.ticks_us()
         while (busy := (s2() << 3) | (m2() << 2) | (s1() << 1) | m1()) != 0b1111:
             if busy != last:
                 logger.debug("Busy: %x", last)
                 last = busy
+            if time.ticks_us() - start >= timeout * 1_000_000:
+                raise OSError(errno.ETIMEDOUT)
 
 
 LUT_VCOM1 = b"""\

@@ -103,6 +103,7 @@ class App:
                 "width": epd.WIDTH,
                 "height": epd.HEIGHT,
             },
+            timeout=15,
         )
         _raise_for_status(response)
         return response.text
@@ -176,7 +177,7 @@ class App:
 
 def _fetch_quadrant(uri: str, expected: int):
     logger.info("fetching quadrant from %s", uri)
-    response = requests.get(uri)
+    response = requests.get(uri, timeout=5)
     _raise_for_status(response)
     length = int(response.headers["Content-Length"])
     assert length == expected, f"expected {expected} bytes, got {length}"
