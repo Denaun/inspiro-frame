@@ -3,12 +3,15 @@ import logging
 
 import config
 import epd_12in48b as epd
-import machine
-import requests
-import network
 import esp32
+import machine
+import network
+import requests
+from micropython import const
 
 logger = logging.getLogger(__name__)
+
+MS_PER_DAY = const(86_400_000)
 
 
 class App:
@@ -68,7 +71,7 @@ class App:
     def sleep(self, duration_ms: int):
         if config.REFRESHES_PER_DAY <= 0:
             return
-        sleep_ms = 86_400_000 // config.REFRESHES_PER_DAY - duration_ms
+        sleep_ms = MS_PER_DAY // config.REFRESHES_PER_DAY - duration_ms
         logger.info("sleeping for %sms", sleep_ms)
         machine.deepsleep(sleep_ms)
 

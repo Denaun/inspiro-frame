@@ -5,18 +5,20 @@ import time
 import app
 import machine
 
-start = time.ticks_us()
 logging.basicConfig(level=logging.DEBUG)
 
 frame = app.App()
-sleep = True
-try:
-    frame.led_on()
-    frame.refresh()
-except KeyboardInterrupt:
-    sleep = False
-except Exception as e:
-    sys.print_exception(e)
-finally:
-    if sleep:
-        frame.sleep(duration_ms=(time.ticks_us() - start) // 1000)
+while True:
+    sleep = True
+    start = time.ticks_ms()
+    try:
+        frame.led_on()
+        frame.refresh()
+    except KeyboardInterrupt:
+        sleep = False
+        break
+    except Exception as e:
+        sys.print_exception(e)
+    finally:
+        if sleep:
+            frame.sleep(duration_ms=time.ticks_ms() - start)
