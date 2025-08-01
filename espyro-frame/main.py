@@ -5,7 +5,7 @@ import time
 import app
 import machine
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, filename="espyro.log", filemode="w")
 
 frame = app.App()
 while True:
