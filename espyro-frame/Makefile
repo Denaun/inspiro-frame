@@ -1,8 +1,9 @@
-
-# Makefile
+PORT ?= auto
 
 VENV_DIR := env
-OUT_DIR := build
+OUT_DIR := out
+LIB_DIR := lib
+TYPINGS_DIR := typings
 
 MD := mkdir
 RM := rm
@@ -11,38 +12,68 @@ PIP := $(VENV_DIR)/bin/pip
 MPY_CROSS := $(VENV_DIR)/bin/mpy-cross
 MPREMOTE := $(VENV_DIR)/bin/mpremote
 
-DEPS := \
-	logging \
+MPREMOTE_CMD := $(MPREMOTE) connect $(PORT)
+CURL := curl -fsSL
+
+MICROPYTHON_LIB = https://raw.githubusercontent.com/micropython/micropython-lib/master
+STDLIB_DEPS := \
+	logging
+STDLIB_FILES = $(STDLIB_DEPS:%=$(LIB_DIR)/%.py)
+MICROPYTHON_PYI = $(TYPINGS_DIR)/micropython.pyi
 
 SOURCES := \
 	app.py \
 	config.py \
-	epd_12in48b.py \
-
+	epd_12in48b.py
 OBJS = $(SOURCES:%.py=$(OUT_DIR)/%.mpy)
 
-.PHONY: all venv flash
+.PHONY: all dev build device-deps deploy flash clean distclean
 
-all: venv flash
+all: dev flash
 
-venv:
-	@$(PYTHON) -m venv $(VENV_DIR)
-	@$(PIP) install mpy-cross
-	@$(PIP) install mpremote
+$(PIP):
+	$(PYTHON) -m venv $(VENV_DIR)
 
-dirs:
-	$(MD) -p $(OUT_DIR)
+$(MPY_CROSS): $(PIP)
+	$(PIP) install mpy-cross
 
-$(OBJS): $(OUT_DIR)/%.mpy: %.py | dirs
+$(MPREMOTE): $(PIP)
+	$(PIP) install mpremote
+
+$(MICROPYTHON_PYI): %/micropython.pyi: $(PIP)
+	$(PIP) install -U micropython-esp32-esp32_generic_c6-stubs --target $*
+
+$(OUT_DIR):
+	$(MD) -p $@
+
+$(LIB_DIR):
+	$(MD) -p $@
+
+$(STDLIB_FILES): $(LIB_DIR)/%.py: | $(LIB_DIR)
+	$(CURL) -o $@ $(MICROPYTHON_LIB)/python-stdlib/$*/$*.py
+
+$(OBJS): $(OUT_DIR)/%.mpy: %.py $(MPY_CROSS) | $(OUT_DIR)
 	$(MPY_CROSS) $< -o $@
 
-mpy: $(OBJS)
+dev: $(STDLIB_FILES) $(MICROPYTHON_PYI)
 
-deps:
-	$(MPREMOTE) mip install $(DEPS)
+build: $(OBJS)
 
-flash: main.py $(OBJS) | deps
-	$(MPREMOTE) cp $^ :
+device-deps: | $(MPREMOTE)
+	$(MPREMOTE_CMD) mip install $(STDLIB_DEPS)
+
+deploy: main.py $(OBJS) | $(MPREMOTE)
+	$(MPREMOTE_CMD) cp $^ :
+
+flash: device-deps deploy
+
+logs: | $(MPREMOTE)
+	$(MPREMOTE_CMD) cat espyro.log
 
 clean:
 	$(RM) -rf $(OUT_DIR)
+	$(RM) -rf $(LIB_DIR)
+	$(RM) -rf $(TYPINGS_DIR)
+
+distclean: clean
+	$(RM) -rf $(VENV_DIR)
