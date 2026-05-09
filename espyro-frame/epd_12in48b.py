@@ -2,8 +2,8 @@
 
 import errno
 import logging
-import struct
 import time
+from typing import Self
 
 import machine
 from micropython import const
@@ -50,7 +50,7 @@ class EPD:
         s1_busy: int,
         m2_busy: int,
         s2_busy: int,
-    ) -> EPD:
+    ):
         self.spi = spi
         self.m1_cs = machine.Pin(m1_cs, machine.Pin.OUT)
         self.s1_cs = machine.Pin(s1_cs, machine.Pin.OUT)
@@ -78,8 +78,9 @@ class EPD:
         self.m2_busy = machine.Pin(m2_busy, machine.Pin.IN)
         self.s2_busy = machine.Pin(s2_busy, machine.Pin.IN)
 
-    def waveshare() -> EPD:
-        return EPD(
+    @classmethod
+    def waveshare(cls) -> Self:
+        return cls(
             spi=machine.SPI(
                 3,
                 baudrate=200_000,
@@ -114,7 +115,7 @@ class EPD:
         # panel setting
         # KW-3f    KWR-2F   BWROTP 0f   BWOTP 1f
         self._m1s1m2s2_send_command(b"\x00")
-        self._m1s1_send_data(b"\x2F")
+        self._m1s1_send_data(b"\x2f")
         self._m2s2_send_data(b"\x23")
 
         # POWER SETTING
@@ -122,7 +123,7 @@ class EPD:
         # VDH=15V
         # VDL=-15V
         self._m1m2_send_command(b"\x01")
-        self._m1m2_send_data(b"\x07\x17\x3F\x3F\x0D")
+        self._m1m2_send_data(b"\x07\x17\x3f\x3f\x0d")
 
         # booster soft start
         self._m1m2_send_command(b"\x06")
@@ -132,10 +133,10 @@ class EPD:
         self._m1s1m2s2_send_command(b"\x61")
         # source 648
         # gate 492
-        self._m1s2_send_data(b"\x02\x88\x01\xEC")
+        self._m1s2_send_data(b"\x02\x88\x01\xec")
         # source 656
         # gate 492
-        self._s1m2_send_data(b"\x02\x90\x01\xEC")
+        self._s1m2_send_data(b"\x02\x90\x01\xec")
 
         # DUSPI
         self._m1s1m2s2_send_command(b"\x15")
@@ -154,14 +155,14 @@ class EPD:
         self._m1s1m2s2_send_data(b"\x22")
 
         # POWER SETTING
-        self._m1m2_send_command(b"\xE0")
+        self._m1m2_send_command(b"\xe0")
         self._m1m2_send_data(b"\x01")
 
-        self._m1s1m2s2_send_command(b"\xE3")
+        self._m1s1m2s2_send_command(b"\xe3")
         self._m1s1m2s2_send_data(b"\x00")
 
         self._m1m2_send_command(b"\x82")
-        self._m1m2_send_data(b"\x1C")
+        self._m1m2_send_data(b"\x1c")
 
         self._set_lut()
 
@@ -173,10 +174,10 @@ class EPD:
         # S2 part 648*492
 
         self._m1s1m2s2_send_command(b"\x10")
-        self._s2_send_data(b"\xFF" * LEFT_BYTES * HALF_HEIGHT)
-        self._m2_send_data(b"\xFF" * RIGHT_BYTES * HALF_HEIGHT)
-        self._m1_send_data(b"\xFF" * LEFT_BYTES * HALF_HEIGHT)
-        self._s1_send_data(b"\xFF" * RIGHT_BYTES * HALF_HEIGHT)
+        self._s2_send_data(b"\xff" * LEFT_BYTES * HALF_HEIGHT)
+        self._m2_send_data(b"\xff" * RIGHT_BYTES * HALF_HEIGHT)
+        self._m1_send_data(b"\xff" * LEFT_BYTES * HALF_HEIGHT)
+        self._s1_send_data(b"\xff" * RIGHT_BYTES * HALF_HEIGHT)
 
         self._m1s1m2s2_send_command(b"\x13")
         self._s2_send_data(b"\x00" * LEFT_BYTES * HALF_HEIGHT)
@@ -249,7 +250,7 @@ class EPD:
 
         # deep sleep
         self._m1s1m2s2_send_command(b"\x07")
-        self._m1s1m2s2_send_data(b"\xA5")
+        self._m1s1m2s2_send_data(b"\xa5")
         time.sleep_ms(300)
 
     def reset(self) -> None:
@@ -423,7 +424,7 @@ class EPD:
             if busy != last:
                 logger.debug("Busy: %x", last)
                 last = busy
-            if time.ticks_us() - start >= timeout * 1_000_000:
+            if time.ticks_diff(time.ticks_us(), start) >= timeout * 1_000_000:
                 raise OSError(errno.ETIMEDOUT)
 
 
@@ -432,8 +433,8 @@ LUT_VCOM1 = b"""\
 \x00\x06\x01\x06\x01\x05\
 \x00\x08\x01\x08\x01\x06\
 \x00\x06\x01\x06\x01\x05\
-\x00\x05\x01\x1E\x0F\x06\
-\x00\x05\x01\x1E\x0F\x01\
+\x00\x05\x01\x1e\x0f\x06\
+\x00\x05\x01\x1e\x0f\x01\
 \x00\x04\x05\x08\x08\x01\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\
@@ -444,21 +445,21 @@ LUT_WW1 = b"""\
 \x04\x06\x01\x06\x01\x05\
 \x84\x08\x01\x08\x01\x06\
 \x80\x06\x01\x06\x01\x05\
-\x00\x05\x01\x1E\x0F\x06\
-\x00\x05\x01\x1E\x0F\x01\
+\x00\x05\x01\x1e\x0f\x06\
+\x00\x05\x01\x1e\x0f\x01\
 \x08\x04\x05\x08\x08\x01\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\
 """
 LUT_BW1 = b"""\
-\xA8\x10\x10\x01\x08\x01\
+\xa8\x10\x10\x01\x08\x01\
 \x84\x06\x01\x06\x01\x05\
 \x84\x08\x01\x08\x01\x06\
 \x86\x06\x01\x06\x01\x05\
-\x8C\x05\x01\x1E\x0F\x06\
-\x8C\x05\x01\x1E\x0F\x01\
-\xF0\x04\x05\x08\x08\x01\
+\x8c\x05\x01\x1e\x0f\x06\
+\x8c\x05\x01\x1e\x0f\x01\
+\xf0\x04\x05\x08\x08\x01\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\
@@ -468,8 +469,8 @@ LUT_WB1 = b"""\
 \x04\x06\x01\x06\x01\x05\
 \x84\x08\x01\x08\x01\x06\
 \x80\x06\x01\x06\x01\x05\
-\x00\x05\x01\x1E\x0F\x06\
-\x00\x05\x01\x1E\x0F\x01\
+\x00\x05\x01\x1e\x0f\x06\
+\x00\x05\x01\x1e\x0f\x01\
 \x08\x04\x05\x08\x08\x01\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\
@@ -480,8 +481,8 @@ LUT_BB1 = b"""\
 \x80\x06\x01\x06\x01\x05\
 \x84\x08\x01\x08\x01\x06\
 \x04\x06\x01\x06\x01\x05\
-\x00\x05\x01\x1E\x0F\x06\
-\x00\x05\x01\x1E\x0F\x01\
+\x00\x05\x01\x1e\x0f\x06\
+\x00\x05\x01\x1e\x0f\x01\
 \x01\x04\x05\x08\x08\x01\
 \x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\

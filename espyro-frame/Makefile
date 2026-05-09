@@ -1,4 +1,5 @@
 PORT ?= auto
+BOARD ?= esp32_generic_c6
 
 VENV_DIR := env
 OUT_DIR := out
@@ -41,7 +42,7 @@ $(MPREMOTE): $(PIP)
 	$(PIP) install mpremote
 
 $(MICROPYTHON_PYI): %/micropython.pyi: $(PIP)
-	$(PIP) install -U micropython-esp32-esp32_generic_c6-stubs --target $*
+	$(PIP) install -U micropython-esp32-$(BOARD)-stubs --target $*
 
 $(OUT_DIR):
 	$(MD) -p $@
@@ -61,6 +62,7 @@ build: $(OBJS)
 
 device-deps: | $(MPREMOTE)
 	$(MPREMOTE_CMD) mip install $(STDLIB_DEPS)
+	$(MPREMOTE_CMD) mip install github:josverl/micropython-stubs/mip/typing_mpy.json
 
 deploy: main.py $(OBJS) | $(MPREMOTE)
 	$(MPREMOTE_CMD) cp $^ :

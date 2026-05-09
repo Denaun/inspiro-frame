@@ -3,7 +3,6 @@ import sys
 import time
 
 import app
-import machine
 
 logging.basicConfig(level=logging.DEBUG, filename="espyro.log", filemode="w")
 
@@ -21,4 +20,4 @@ while True:
         sys.print_exception(e)
     finally:
         if sleep:
-            frame.sleep(duration_ms=time.ticks_ms() - start)
+            frame.sleep(duration_ms=time.ticks_diff(time.ticks_ms(), start))
