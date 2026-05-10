@@ -20,6 +20,7 @@ while True:
     except Exception as e:
         sys.print_exception(e)
     finally:
+        frame.led_off()
         duration_ms = time.ticks_diff(time.ticks_ms(), start)
         logging.debug("duration: %dms", duration_ms)
         if sleep:

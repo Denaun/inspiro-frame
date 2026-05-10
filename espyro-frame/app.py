@@ -55,6 +55,10 @@ class App:
         if config.LED is not None:
             machine.Pin(config.LED, machine.Pin.OUT).on()
 
+    def led_off(self):
+        if config.LED is not None:
+            machine.Pin(config.LED, machine.Pin.OUT).off()
+
     def daily_clear(self):
         nvs = esp32.NVS("espiro_frame")
         try:
