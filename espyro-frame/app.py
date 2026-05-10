@@ -1,3 +1,4 @@
+import binascii
 import logging
 import time
 
@@ -50,6 +51,7 @@ class App:
             m2_busy=config.Pins.M2_BUSY,
             s2_busy=config.Pins.S2_BUSY,
         )
+        self._wifi_cache = esp32.NVS("wifi_cache")
 
     def led_on(self):
         if config.LED is not None:
@@ -106,12 +108,66 @@ class App:
     def _connect_wifi(self) -> network.WLAN:
         wlan = network.WLAN(network.WLAN.IF_STA)
         wlan.active(True)
-        wlan.config(reconnects=10)
-        if not wlan.isconnected():
-            logger.info("connecting to network...")
+        wlan.config(reconnects=3)
+
+        if wlan.isconnected():
+            logger.info("network config: %s", wlan.ipconfig("addr4"))
+            return wlan
+
+        # Try to load cached BSSID + channel from NVS
+        bssid = None
+        try:
+            bssid_hex = bytearray(6)
+            self._wifi_cache.get_blob("bssid", bssid_hex)
+            channel = self._wifi_cache.get_i32("channel")
+            bssid = bytes(bssid_hex)
+            logger.info(
+                "fast connect: channel=%s bssid=%s",
+                channel,
+                binascii.hexlify(bssid),
+            )
+            wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD, bssid=bssid)
+        except OSError:
+            # No cache yet, or NVS read failed — do a normal connect
+            logger.info("connecting to network (no cache)...")
             wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
-            while not wlan.isconnected():
-                pass
+
+        # Wait for connection with timeout
+        deadline = time.ticks_add(time.ticks_ms(), 10_000)
+        while not wlan.isconnected():
+            if time.ticks_diff(deadline, time.ticks_ms()) <= 0:
+                # Fast connect may have failed (AP moved channel etc.) — retry without BSSID
+                if bssid is not None:
+                    logger.info("fast connect failed, retrying without cache...")
+                    wlan.disconnect()
+                    wlan.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
+                    bssid = None
+                    deadline = time.ticks_add(time.ticks_ms(), 15_000)
+                else:
+                    raise OSError("WiFi connection timed out")
+            time.sleep_ms(50)
+
+        # Cache BSSID + channel to NVS if we didn't use them (cache miss or fast-connect failed)
+        if bssid is None:
+            try:
+                scan_results = wlan.scan()
+                ssid_bytes = config.WIFI_SSID.encode()
+                best = None
+                for ssid, bssid, ch, rssi, *_ in scan_results:
+                    if ssid == ssid_bytes:
+                        if best is None or rssi > best[2]:
+                            best = (bssid, ch, rssi)
+
+                if best:
+                    self._wifi_cache.set_blob("bssid", best[0])
+                    self._wifi_cache.set_i32("channel", best[1])
+                    self._wifi_cache.commit()
+                    logger.info(
+                        "cached: ch=%d bssid=%s", best[1], binascii.hexlify(best[0])
+                    )
+            except Exception as e:
+                logger.warning("failed to cache WiFi info: %s", e)
+
         logger.info("network config: %s", wlan.ipconfig("addr4"))
         return wlan
 
