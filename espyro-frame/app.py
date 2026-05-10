@@ -5,9 +5,10 @@ import time
 import config
 import epd_12in48b as epd
 import esp32
+import http_client
 import machine
+import mate_client
 import network
-import requests
 from micropython import const
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ class App:
             s2_busy=config.Pins.S2_BUSY,
         )
         self._wifi_cache = esp32.NVS("wifi_cache")
+        self._conn = http_client.HttpConnection(config.MATE_ENDPOINT)
 
     def led_on(self):
         if config.LED is not None:
@@ -98,9 +100,13 @@ class App:
     def _fetch_and_display(self):
         wlan = self._connect_wifi()
         try:
-            screenshot_id = self._take_screenshot()
-            logger.info("created screenshot %s", screenshot_id)
-            self._display(screenshot_id)
+            with self._conn as client:
+                mate = mate_client.MateClient(client)
+                screenshot_id = mate.take_screenshot(
+                    config.DASHBOARD_URL, width=epd.WIDTH, height=epd.HEIGHT
+                )
+                logger.info("created screenshot %s", screenshot_id)
+                self._display(mate, screenshot_id)
         finally:
             wlan.active(False)
 
@@ -171,99 +177,47 @@ class App:
         logger.info("network config: %s", wlan.ipconfig("addr4"))
         return wlan
 
-    def _take_screenshot(self) -> str:
-        uri = f"{config.MATE_ENDPOINT}/screenshots"
-        logger.info("taking screenshot of %s on %s", config.DASHBOARD_URL, uri)
-        response = requests.post(
-            uri,
-            json={
-                "url": config.DASHBOARD_URL,
-                "width": epd.WIDTH,
-                "height": epd.HEIGHT,
-            },
-            timeout=15,
-        )
-        _raise_for_status(response)
-        return response.text
-
-    def _display(self, screenshot_id: str):
+    def _display(self, mate: mate_client.MateClient, screenshot_id: str):
         logger.info("s1")
-        uri = self._quadrant_uri(
+        mate.fetch_quadrant(
             screenshot_id,
             x=epd.LEFT_WIDTH,
             y=epd.HALF_HEIGHT,
             width=epd.RIGHT_WIDTH,
             height=epd.HALF_HEIGHT,
+            white_consumer=self.epd.s1_display_white,
+            red_consumer=self.epd.s1_display_red,
         )
-        buf_size = epd.RIGHT_WIDTH * epd.HALF_HEIGHT >> 3
-        response = _fetch_quadrant(uri, expected=2 * buf_size)
-        buf = response.raw.read(buf_size)
-        self.epd.s1_display_white(buf)
-        buf = response.raw.read(buf_size)
-        self.epd.s1_display_red(buf)
 
         logger.info("m2")
-        uri = self._quadrant_uri(
+        mate.fetch_quadrant(
             screenshot_id,
             x=epd.LEFT_WIDTH,
             y=0,
             width=epd.RIGHT_WIDTH,
             height=epd.HALF_HEIGHT,
+            white_consumer=self.epd.m2_display_white,
+            red_consumer=self.epd.m2_display_red,
         )
-        buf_size = epd.RIGHT_WIDTH * epd.HALF_HEIGHT >> 3
-        response = _fetch_quadrant(uri, expected=2 * buf_size)
-        buf = response.raw.read(buf_size)
-        self.epd.m2_display_white(buf)
-        buf = response.raw.read(buf_size)
-        self.epd.m2_display_red(buf)
 
         logger.info("m1")
-        uri = self._quadrant_uri(
+        mate.fetch_quadrant(
             screenshot_id,
             x=0,
             y=epd.HALF_HEIGHT,
             width=epd.LEFT_WIDTH,
             height=epd.HALF_HEIGHT,
+            white_consumer=self.epd.m1_display_white,
+            red_consumer=self.epd.m1_display_red,
         )
-        buf_size = epd.LEFT_WIDTH * epd.HALF_HEIGHT >> 3
-        response = _fetch_quadrant(uri, expected=2 * buf_size)
-        buf = response.raw.read(buf_size)
-        self.epd.m1_display_white(buf)
-        buf = response.raw.read(buf_size)
-        self.epd.m1_display_red(buf)
 
         logger.info("s2")
-        uri = self._quadrant_uri(
+        mate.fetch_quadrant(
             screenshot_id,
             x=0,
             y=0,
             width=epd.LEFT_WIDTH,
             height=epd.HALF_HEIGHT,
-        )
-        buf_size = epd.LEFT_WIDTH * epd.HALF_HEIGHT >> 3
-        response = _fetch_quadrant(uri, expected=2 * buf_size)
-        buf = response.raw.read(buf_size)
-        self.epd.s2_display_white(buf)
-        buf = response.raw.read(buf_size)
-        self.epd.s2_display_red(buf)
-
-    def _quadrant_uri(
-        self, screenshot_id: str, x: int, y: int, width: int, height: int
-    ) -> str:
-        return f"{config.MATE_ENDPOINT}/screenshots/{screenshot_id}?x={x}&y={y}&width={width}&height={height}&format=bwr-raw"
-
-
-def _fetch_quadrant(uri: str, expected: int):
-    logger.info("fetching quadrant from %s", uri)
-    response = requests.get(uri, timeout=5)
-    _raise_for_status(response)
-    length = int(response.headers["Content-Length"])
-    assert length == expected, f"expected {expected} bytes, got {length}"
-    return response
-
-
-def _raise_for_status(response: requests.Response):
-    if not 200 <= response.status_code <= 299:
-        raise ValueError(
-            f"unexpected response code {response.status_code}: {response.reason}"
+            white_consumer=self.epd.s2_display_white,
+            red_consumer=self.epd.s2_display_red,
         )

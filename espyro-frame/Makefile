@@ -25,7 +25,9 @@ MICROPYTHON_PYI = $(TYPINGS_DIR)/micropython.pyi
 SOURCES := \
 	app.py \
 	config.py \
-	epd_12in48b.py
+	epd_12in48b.py \
+	http_client.py \
+	mate_client.py
 OBJS = $(SOURCES:%.py=$(OUT_DIR)/%.mpy)
 
 .PHONY: all dev build device-deps deploy flash clean distclean
