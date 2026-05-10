@@ -12,6 +12,7 @@ while True:
     start = time.ticks_ms()
     try:
         frame.led_on()
+        frame.daily_clear()
         frame.refresh()
     except KeyboardInterrupt:
         sleep = False
