@@ -1,4 +1,5 @@
 import logging
+import time
 
 import config
 import epd_12in48b as epd
@@ -11,6 +12,19 @@ from micropython import const
 logger = logging.getLogger(__name__)
 
 MS_PER_DAY = const(86_400_000)
+
+
+def _timed(f, *args, **kwargs):
+    myname = str(f).split(" ")[1]
+
+    def new_func(*args, **kwargs):
+        t = time.ticks_us()
+        result = f(*args, **kwargs)
+        delta = time.ticks_diff(time.ticks_us(), t)
+        logger.info("%s time = %6.3fms", myname, delta / 1000)
+        return result
+
+    return new_func
 
 
 class App:
@@ -74,6 +88,7 @@ class App:
         logger.info("sleeping for %sms", sleep_ms)
         machine.deepsleep(sleep_ms)
 
+    @_timed
     def _fetch_and_display(self):
         wlan = self._connect_wifi()
         try:
@@ -83,6 +98,7 @@ class App:
         finally:
             wlan.active(False)
 
+    @_timed
     def _connect_wifi(self) -> network.WLAN:
         wlan = network.WLAN(network.WLAN.IF_STA)
         wlan.active(True)
