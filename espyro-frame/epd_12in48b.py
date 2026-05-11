@@ -58,19 +58,9 @@ class EPD:
         self.s2_cs = machine.Pin(s2_cs, machine.Pin.OUT)
         self.m1s1_dc = machine.Pin(m1s1_dc, machine.Pin.OUT)
         self.m2s2_dc = machine.Pin(m2s2_dc, machine.Pin.OUT)
-        self.m1s1_rst = machine.Pin(
-            m1s1_rst,
-            machine.Pin.OUT,
-            pull=machine.Pin.PULL_UP,
-            hold=True,
-        )
+        self.m1s1_rst = machine.Pin(m1s1_rst, machine.Pin.OUT)
         if m2s2_rst is not None:
-            self.m2s2_rst = machine.Pin(
-                m2s2_rst,
-                machine.Pin.OUT,
-                pull=machine.Pin.PULL_UP,
-                hold=True,
-            )
+            self.m2s2_rst = machine.Pin(m2s2_rst, machine.Pin.OUT)
         else:
             self.m2s2_rst = None
         self.m1_busy = machine.Pin(m1_busy, machine.Pin.IN)
@@ -253,15 +243,40 @@ class EPD:
         self._m1s1m2s2_send_data(b"\xa5")
         time.sleep_ms(300)
 
+        # hold for deep sleep
+        for pin in [
+            self.m1_cs,
+            self.s1_cs,
+            self.m2_cs,
+            self.s2_cs,
+            self.m1s1_dc,
+            self.m2s2_dc,
+        ]:
+            pin.init(hold=True)
+
     def reset(self) -> None:
+        # release
         self.m1s1_rst.init(value=1, hold=False)
         if pin := self.m2s2_rst:
             pin.init(value=1, hold=False)
+        for pin in [
+            self.m1_cs,
+            self.s1_cs,
+            self.m2_cs,
+            self.s2_cs,
+            self.m1s1_dc,
+            self.m2s2_dc,
+        ]:
+            pin.init(hold=False)
+
+        # reset pulse
         time.sleep_ms(200)
         self.m1s1_rst.off()
         if pin := self.m2s2_rst:
             pin.off()
         time.sleep_ms(5)
+
+        # hold reset
         self.m1s1_rst.init(value=1, hold=True)
         if pin := self.m2s2_rst:
             pin.init(value=1, hold=True)
