@@ -3,9 +3,8 @@ import sys
 import time
 
 import app
-import machine
 
-logging.basicConfig(level=logging.DEBUG, filename="espyro.log", filemode="w")
+logging.basicConfig(level=logging.WARNING, filename="espyro.log", filemode="w")
 
 frame = app.App()
 while True:
@@ -13,6 +12,7 @@ while True:
     start = time.ticks_ms()
     try:
         frame.led_on()
+        frame.daily_clear()
         frame.refresh()
     except KeyboardInterrupt:
         sleep = False
@@ -20,5 +20,8 @@ while True:
     except Exception as e:
         sys.print_exception(e)
     finally:
+        frame.led_off()
+        duration_ms = time.ticks_diff(time.ticks_ms(), start)
+        logging.debug("duration: %dms", duration_ms)
         if sleep:
-            frame.sleep(duration_ms=time.ticks_ms() - start)
+            frame.sleep(duration_ms)

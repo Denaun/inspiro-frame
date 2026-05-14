@@ -1,0 +1,8 @@
+{
+  "venvPath": ".",
+  "venv": "env",
+  "typeshedPath": "typings",
+  "extraPaths": ["lib"],
+  "reportMissingModuleSource": "none"
+}
+
